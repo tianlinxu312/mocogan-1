@@ -15,13 +15,13 @@ from models import Discriminator_I, Discriminator_V, Generator_I, GRU
 
 
 parser = argparse.ArgumentParser(description='Start trainning MoCoGAN.....')
-parser.add_argument('--cuda', type=int, default=1,
+parser.add_argument('--cuda', type=int, default=-1,
                      help='set -1 when you use cpu')
 parser.add_argument('--ngpu', type=int, default=1,
                      help='set the number of gpu you use')
-parser.add_argument('--batch-size', type=int, default=16,
+parser.add_argument('--batch-size', type=int, default=2,
                      help='set batch_size, default: 16')
-parser.add_argument('--niter', type=int, default=120000,
+parser.add_argument('--niter', type=int, default=65000,
                      help='set num of iterations, default: 120000')
 parser.add_argument('--pre-train', type=int, default=-1,
                      help='set 1 when you use pre-trained models')
@@ -43,9 +43,9 @@ if cuda == True:
 
 ''' prepare dataset '''
 
-current_path = os.path.dirname(__file__)
-resized_path = os.path.join(current_path, 'resized_data')
-files = glob.glob(resized_path+'/*')
+current_path = os.path.dirname('./data/')
+# resized_path = os.path.join(current_path, 'resized_data')
+files = glob.glob(current_path+'/*')
 videos = [ skvideo.io.vread(file) for file in files ]
 # transpose each video to (nc, n_frames, img_size, img_size), and devide by 255
 videos = [ video.transpose(3, 0, 1, 2) / 255.0 for video in videos ]
@@ -56,24 +56,16 @@ videos = [ video.transpose(3, 0, 1, 2) / 255.0 for video in videos ]
 n_videos = len(videos)
 T = 16
 
-# for true video
-def trim(video):
-    start = np.random.randint(0, video.shape[1] - (T+1))
-    end = start + T
-    return video[:, start:end, :, :]
-
 # for input noises to generate fake video
 # note that noises are trimmed randomly from n_frames to T for efficiency
 def trim_noise(noise):
-    start = np.random.randint(0, noise.size(1) - (T+1))
-    end = start + T
-    return noise[:, start:end, :, :, :]
+    return noise[:, 3:T+3, :, :, :]
 
 def random_choice():
     X = []
     for _ in range(batch_size):
         video = videos[np.random.randint(0, n_videos-1)]
-        video = torch.Tensor(trim(video))
+        video = torch.Tensor(video[:, :, :, :])
         X.append(video)
     X = torch.stack(X)
     return X
@@ -84,7 +76,7 @@ video_lengths = [video.shape[1] for video in videos]
 
 ''' set models '''
 
-img_size = 96
+img_size = 64
 nc = 3
 ndf = 64 # from dcgan
 ngf = 64
@@ -170,7 +162,7 @@ def bp_i(inputs, y, retain=False):
     outputs = dis_i(inputs)
     err = criterion(outputs, labelv)
     err.backward(retain_graph=retain)
-    return err.data[0], outputs.data.mean()
+    return err.data.item(), outputs.data.mean()
 
 def bp_v(inputs, y, retain=False):
     label.resize_(inputs.size(0)).fill_(y)
@@ -178,7 +170,7 @@ def bp_v(inputs, y, retain=False):
     outputs = dis_v(inputs)
     err = criterion(outputs, labelv)
     err.backward(retain_graph=retain)
-    return err.data[0], outputs.data.mean()
+    return err.data.item(), outputs.data.mean()
 
 
 ''' gen input noise for fake video '''
@@ -216,7 +208,7 @@ for epoch in range(1, n_iter+1):
     n_frames = video_lengths[np.random.randint(0, n_videos)]
     Z = gen_z(n_frames)  # Z.size() => (batch_size, n_frames, nz, 1, 1)
     # trim => (batch_size, T, nz, 1, 1)
-    Z = trim_noise(Z)
+    # Z = trim_noise(Z)
     # generate videos
     Z = Z.contiguous().view(batch_size*T, nz, 1, 1)
     fake_videos = gen_i(Z)
@@ -240,7 +232,6 @@ for epoch in range(1, n_iter+1):
     err_Di = err_Di_real + err_Di_fake
     optim_Di.step()
 
-
     ''' train generators '''
     gen_i.zero_grad()
     gru.zero_grad()
@@ -258,7 +249,7 @@ for epoch in range(1, n_iter+1):
     if epoch % 1000 == 0:
         save_video(fake_videos[0].data.cpu().numpy().transpose(1, 2, 3, 0), epoch)
 
-    if epoch % 10000 == 0:
+    if epoch % 1000 == 0:
         checkpoint(dis_i, optim_Di, epoch)
         checkpoint(dis_v, optim_Dv, epoch)
         checkpoint(gen_i, optim_Gi, epoch)

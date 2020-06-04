@@ -107,8 +107,9 @@ def timeSince(since):
     s = s - m*60 - h*(60**2) - d*24*(60**2)
     return '%dd %dh %dm %ds' % (d, h, m, s)
 
-trained_path = os.path.join(current_path, 'trained_models')
+
 def checkpoint(model, optimizer, epoch):
+    trained_path = './trained'
     filename = os.path.join(trained_path, '%s_epoch-%d' % (model.__class__.__name__, epoch))
     torch.save(model.state_dict(), filename + '.model')
     torch.save(optimizer.state_dict(), filename + '.state')
@@ -156,6 +157,7 @@ if pre_train == True:
 
 ''' calc grad of models '''
 
+
 def bp_i(inputs, y, retain=False):
     label.resize_(inputs.size(0)).fill_(y)
     labelv = Variable(label)
@@ -163,6 +165,7 @@ def bp_i(inputs, y, retain=False):
     err = criterion(outputs, labelv)
     err.backward(retain_graph=retain)
     return err.data.item(), outputs.data.mean()
+
 
 def bp_v(inputs, y, retain=False):
     label.resize_(inputs.size(0)).fill_(y)
@@ -174,6 +177,7 @@ def bp_v(inputs, y, retain=False):
 
 
 ''' gen input noise for fake video '''
+
 
 def gen_z(n_frames):
     z_C = Variable(torch.randn(batch_size, d_C))
@@ -242,14 +246,14 @@ for epoch in range(1, n_iter+1):
     optim_Gi.step()
     optim_GRU.step()
 
-    if epoch % 100 == 0:
+    if epoch % 500 == 0:
         print('[%d/%d] (%s) Loss_Di: %.4f Loss_Dv: %.4f Loss_Gi: %.4f Loss_Gv: %.4f Di_real_mean %.4f Di_fake_mean %.4f Dv_real_mean %.4f Dv_fake_mean %.4f'
               % (epoch, n_iter, timeSince(start_time), err_Di, err_Dv, err_Gi, err_Gv, Di_real_mean, Di_fake_mean, Dv_real_mean, Dv_fake_mean))
 
-    if epoch % 1000 == 0:
-        save_video(fake_videos[0].data.cpu().numpy().transpose(1, 2, 3, 0), epoch)
+    # if epoch % 50 == 0:
+    #     save_video(fake_videos[0].data.cpu().numpy().transpose(1, 2, 3, 0), epoch)
 
-    if epoch % 1000 == 0:
+    if epoch % 500 == 0:
         checkpoint(dis_i, optim_Di, epoch)
         checkpoint(dis_v, optim_Dv, epoch)
         checkpoint(gen_i, optim_Gi, epoch)

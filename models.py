@@ -24,11 +24,11 @@ class Discriminator_I(nn.Module):
             nn.BatchNorm2d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*4) x 12 x 12
-            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.Conv2d(ndf * 4, ndf * 8, 2, 2, 1, bias=False),
             nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 6 x 6
-            nn.Conv2d(ndf * 8, 1, 6, 1, 0, bias=False),
+            nn.Conv2d(ndf * 8, 1, 5, 1, 0, bias=False),
             nn.Sigmoid()
         )
 
@@ -58,12 +58,12 @@ class Discriminator_V(nn.Module):
             nn.BatchNorm3d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*4) x T/8 x 12 x 12
-            nn.Conv3d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.Conv3d(ndf * 4, ndf * 8, 2, 2, 1, bias=False),
             nn.BatchNorm3d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x T/16  x 6 x 6
             Flatten(),
-            nn.Linear(int((ndf*8)*(T/16)*6*6), 1),
+            nn.Linear(int((ndf*8)*(T/16)*50), 1),
             nn.Sigmoid()
         )
 
@@ -83,7 +83,7 @@ class Generator_I(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(     nz, ngf * 8, 6, 1, 0, bias=False),
+            nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 6 x 6
